@@ -1,0 +1,261 @@
+**align with the existing view tiddler - data tiddler pair system, where view tiddlers just edit, create, and delete data tiddlers. The currently loaded data tiddler is tagged with the view tiddler name and its name is stored in the loaded_data_tiddler field of the view tiddler. Implement this as a called widget on each view tiddler for each tiddler type, with the UI accomodating and editing the stored data tiddler info in unique fields. While still allowing other info input plugins and other plugins to be called as widgets in the tiddler text area, also accomodating and editing stored data tiddler info. Data tiddler management is handled with an external plugin. Data tiddlers are tagged with the current view tiddler name when created. Revise the plugin to have a compact list of such tagged data tiddlers with the current tiddler name (the view tiddler the widget is on) and just essentially select them, for data editing. This plugin is not supposed to create or delete such data tiddlers, only provide location mapping info to data tiddlers. Implement also a save button to update/save information to selected data tiddler**
+
+**Also, consider a universal, independent unit of length for this system only that is convertible to any real world length such as meter, inch, feet, etc.**
+
+**Note: this is supposed to be a standalone plugin, not dependent of any libraries, but if you can access such libraries, you can perhaps take inspiration or perhaps even take bits off them.**
+
+**use *> prefix for all tags in the system to make them unique and isolate the location mapping system from the rest of the wiki**
+
+# Hierarchical Spatial Mapping System - TiddlyWiki Plugin Implementation Plan
+
+## Executive Summary
+
+A hierarchical node-edge spatial knowledge graph system for TiddlyWiki, capable of representing locations from galaxies to coffee mugs, using modern geospatial research principles while maintaining practical CLI-style usability.
+
+---
+
+## I. RESEARCH-BACKED IMPROVEMENTS TO YOUR ORIGINAL CONCEPT
+
+### 2. Graph Structure (DAG vs Tree)
+
+**Your Concept**: DAG for handling overlap
+**Research Enhancement**: Implement a **Hybrid Containment Model**
+
+```javascript
+// Node structure
+{
+  id: "node_uuid",
+  type: "point|area|volume",
+
+  // PRIMARY parent (containment hierarchy)
+  parent_id: "parent_uuid",
+
+  // SECONDARY containments (for boundary/overlap cases)
+  also_contained_in: ["other_parent_uuid"],
+
+  // Adjacent nodes (for topology, not containment)
+  adjacent_to: ["neighbor_uuid"],
+
+  // Coordinate data
+  local_coords: {x, y, z},
+  reference_frame_id: "parent_uuid"
+}
+```
+
+**Consider using also the hierarchical type of the element to create a dynamic identifier for it that will always be unique, perhaps along with the uuid.**
+
+**Edge Types** (following 3D Scene Graph research):
+- **CONTAINS**: Parent → Child (hierarchy)
+- **ADJACENT**: Same-level spatial neighbors (topology)
+- **ROUTE**: Path connection (navigation)
+- **REFERENCES**: Cross-hierarchy link (e.g., "Room 305 references Building A")
+
+### 3. Pathfinding Algorithm
+
+**Your Concept**: Hierarchical routing (Country → City → Street)
+**Research Validation**: This is exactly **HPA* (Hierarchical Pathfinding A*)**
+
+**Implementation Specs**:
+- **Preprocessing**: Cache intra-cluster paths between all entry/exit points
+- **Search**: Route at highest level first, refine downward
+- **Performance**: 10x faster than flat A* for long-distance routes
+- **Optimality**: Paths within 1% of true optimal
+
+**TiddlyWiki-Specific Optimization**:
+Use tiddler tags for cluster membership:
+```
+tags: ["cluster:usa", "cluster:california", "cluster:sanfrancisco"] (hierarchy based)
+```
+
+---
+
+## II. TIDDLYWIKI PLUGIN ARCHITECTURE
+
+## Key Research-Backed Improvements
+
+### 3. **Implement Proper DAG with Typed Edges**
+Research on spatial knowledge graphs (Hu et al., 2024) shows the importance of geometric features including topology, direction, and distance between each pair of geographic entities.
+
+**Improvement**: Define edge types:
+- `contains` (spatial containment)
+- `adjacent` (shares boundary)
+- `connects` (route/pathway)
+- `within_distance` (proximity)
+- `parent` (hierarchical)
+
+```
+
+---
+
+## Comprehensive Feature Plan & Implementation Checklist
+
+### **PHASE 1: Core Data Model (treat as guide not rules)**
+
+#### Tiddler Types
+- [ ] **Point Tiddler** (`type: location-point`)
+  - Fields: `lat`, `lon`, `alt`, `x_local`, `y_local`, `z_local`, `parent_ref`, `coordinate_system`
+  - [ ] Support both geodetic (lat/lon) and local (x/y/z) coordinates
+  - [ ] Auto-calculate local coords from geodetic when parent changes
+
+- [ ] **Area Tiddler** (`type: location-area`)
+  - Fields: `center_point`, `boundary_points`, `coordinate_system`, `parent_ref`
+  - [ ] Boundary defined as ordered list of point references
+  - [ ] Center point as reference frame origin for child nodes
+
+- [ ] **Volume Tiddler** (`type: location-volume`)
+  - Fields: `center_point`, `bounding_box`, `floor_height`, `ceiling_height`, `parent_ref`
+  - [ ] 3D bounding polyhedron or simplified box (data only, not visualized)
+  - [ ] Support for multi-story buildings
+
+- [ ] **Route Tiddler** (`type: location-route`)
+  - Fields: `waypoints[]`, `total_distance`, `hierarchical_segments`
+  - [ ] Waypoints reference Point/Area/Volume center points
+
+#### Edge System
+- [ ] **Edge Storage**: JSON field `edges[]` in each tiddler
+  ```json
+  {
+    "edges": [
+      {"type": "contains", "target": "Room_B", "properties": {}},
+      {"type": "adjacent", "target": "Hallway_1", "properties": {"shared_boundary": "north_wall"}},
+      {"type": "connects", "target": "Stairwell_A", "properties": {"distance_m": 5.2}}
+    ]
+  }
+  ```
+
+- [ ] Create bidirectional edge management (updates both tiddlers)
+
+#### Coordinate System Management
+
+- [ ] **Transformation Functions**
+  - [ ] Parent local → Child local (hierarchical transform)
+  - [ ] Distance calculation via Least Common Ancestor (LCA)
+
+---
+
+### **PHASE 2: User Interface - Practical & Functional**
+
+#### Visualization Core
+
+- [ ] **Semantic Zoom Levels (Example)**
+  ```
+  Level 0: World view    (show continents as volumes)
+  Level 1: Country view  (show cities as areas)
+  Level 2: City view     (show buildings as volumes)
+  Level 3: Building view (show rooms as areas)
+  Level 4: Room view     (show furniture as points/volumes)
+  ```
+
+#### Camera & Navigation
+- [ ] **Focus Mode**: Selected node always at reference point/view point center
+- [ ] **Zoom In**: Transition parent to wireframe, expand child nodes
+- [ ] **Zoom Out**: Collapse children, parent becomes solid
+- [ ] **Pan**: Move within current reference frame
+- [ ] **Orbit**: Rotate camera around focus point
+
+#### Visual Design Principles (Practical, Not Flashy) (Align with the global cataclysm dark days ahead stylesheet theme, emphasizing yellow text on complete black background with other UI elements being red, blue, and white. Consider view port with black background, yellow nodes and edges)
+- [ ] **Nodes as Transparent Bounding Boxes**
+  - Points: Small spheres or cubes
+  - Areas: Flat polygons (for 2D maps) or thin boxes (for floors)
+  - Volumes: Semi-transparent boxes with wireframe edges
+
+- [ ] **Color Coding by Type**
+  - just have visual difference, through color or shape for the tiddler type nodes.
+
+- [ ] **Edge Visualization**
+  - Containment: Invisible (implied by hierarchy)
+  - Adjacent: Dotted line
+  - Connects: Solid line with directional arrow
+  - Route: Thick colored line with distance labels
+
+- [ ] **Label Management**
+  - Show labels only for nodes 2 levels above/below current focus
+  - Font size scales with distance from camera
+  - Occlusion culling for overlapping labels
+
+#### Information Panel
+- [ ] **Selected Node Info**
+  - Name, type, tags
+  - Coordinates (both geodetic and local)
+  - Parent/Children list (clickable to navigate)
+  - Custom fields display
+
+- [ ] **Minimap** (Optional)
+  - 2D overhead view showing current position in hierarchy
+  - Clickable to jump between nodes
+
+- Adjacent elements table (scrollable, compact viewport)
+
+
+---
+
+### **PHASE 3: Essential Operations**
+
+#### Create & Edit
+- [ ] **Quick Point Creation**
+  - Click on map → create point at cursor position
+  - Manual coordinate entry via text
+
+- [ ] **Area Definition Tools (Not a visual form, but a tool for streamlined area node form creation)**
+  - Draw polygon by clicking boundary points
+  - Auto-generate from child points
+
+- [ ] **Volume Definition Tools (Not a visual form, but a tool for streamlined volume node creation)**
+  - Extrude area upward with height parameter
+  - Basic volume creation primitive operations inspired by CAD software
+  - Draw 3D polygon by clicking boundary points
+
+- [ ] **Relationship Management**
+  - Drag-and-drop to change parent
+  - Auto-update coordinate transforms when reparenting
+  - Visual edge editor (click node A, select edge type, click node B)
+
+#### Query & Search
+- [ ] **Spatial Queries Example**
+  - "Find all points within 100m of X"
+  - "Find all rooms on Floor 2 of Building Y"
+  - "List all routes that pass through Area Z"
+
+- [ ] **Hierarchical Pathfinding** (A* on layered graph)
+  - Route within room (local points)
+  - Route within building (room exits)
+  - Route within city (building entrances)
+  - Route between cities (transit hubs)
+
+- [ ] **Filter System**
+  - Filter by tags
+  - Filter by coordinate system
+
+---
+
+### **PHASE 4: Advanced Features**
+
+#### Multi-Scale Precision Management
+- [ ] **Automatic Coordinate System Selection**
+  - Warn user about floating-point precision when local coords exceed too much from defined center
+
+- [ ] **Precision Indicators**
+  - Display "coordinate precision: ±0.01m" based on current scale
+  - Highlight nodes where precision is degraded
+
+#### Performance Optimization
+- [ ] **Level-of-Detail (LOD)**
+  - Simplified geometry for distant nodes
+  - Progressive loading (load children on demand)
+
+- [ ] **Spatial Indexing**
+  - R-tree for fast proximity queries
+  - Grid-based culling for rendering
+
+- [ ] **Lazy Loading**
+  - Only load visible nodes + 1 level above/below
+  - Unload nodes when > 3 levels away from focus
+
+
+---
+
+## Critical Implementation Notes
+
+1. **Start Small**: Build Point → Area → Volume in that order. Routes come last.
+
+5. **UI Philosophy**: Prioritize **discoverability** and practicality over beauty.
